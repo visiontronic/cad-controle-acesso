@@ -1,0 +1,14 @@
+execute ibeblock (
+  DatabaseID variant comment         'Internal ID (within IBExpert) of the database associated to the table/view editor',
+  ObjectEditor variant comment       'Table/view editor object (pointer)',
+  RelationName variant comment       'Table/view name',
+  RelationNameFmt variant comment    'Formatted table/view name',
+  RelationType variant comment       'Relation type: __dboTable or __dboView',
+  DefaultSelectQuery variant comment 'Select query composed by IBExpert',
+  OrderByPK boolean comment          'TRUE if corresponding option is ON in Options | Object editor options | Table editor; FALSE otherwise')
+returns (
+  SelectQuery variant = null comment 'Modified SELECT query. If NULL, value of DefaultSelectQuery will be used')
+as
+begin
+  SelectQuery = :DefaultSelectQuery;
+end

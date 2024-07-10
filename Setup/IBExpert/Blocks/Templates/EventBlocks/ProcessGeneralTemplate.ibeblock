@@ -1,0 +1,268 @@
+execute ibeblock (
+  DatabaseID variant comment 'Internal ID (within IBExpert) of the database',
+  ActionID integer comment 'ID of action which will be performed',
+  TemplateText variant comment 'Original template text (as specified in IBExpert GUI)',
+  ProcessedTemplateIn variant comment 'Processed template text (object name, PSQL source etc.)',
+  TruncatedIn variant comment 'Indicates that processed tempate text was truncated by IBExpert,
+                               for example if result length is greater than 31 chars for object names',
+  DataArr variant comment 'Array of additional data, see the block code')
+returns (
+  ProcessedTemplateOut variant comment 'Processed template text (object name, PSQL source etc.)',
+  TruncatedOut variant comment 'Indicates that processed tempate text was truncated within the block')
+as
+begin
+  ------------------------
+  -- Action identifiers --
+  ------------------------
+  AutoIncGeneratorName = 1;     -- Generator name for autoincrement field
+  AutoIncTriggerName = 2;       -- Trigger name for autoincrement field
+  AutoIncProcedureName = 3;     -- Procedure name for autoincrement field
+  AutoIncTriggerText = 4;       -- Trigger text for autoincrement field
+  AutoIncProcedureText = 5;     -- Procedure text for autoincrement field
+
+  PrimaryKeyName = 6;           -- New primary key constraint name
+  ForeignKeyName = 7;           -- New foreign key constraint name
+  CheckConstrName = 8;          -- New check constraint name
+  UniqueConstrName = 9;         -- New unique constraint name
+
+  IndexName = 10;               -- New index name
+
+  NewViewText = 11;             -- New view text
+  NewTriggerText = 12;          -- New trigger text (for standard mode)
+  NewTriggerNameLazy = 13;      -- New trigger name (for lazy mode)
+  NewTriggerBodyLazy = 14;      -- New trigger body (for lazy mode)
+  NewProcedureText = 15;        -- New procedure text (for standard mode)
+  NewProcedureNameLazy = 16;    -- Not used
+  NewProcedureBodyLazy = 17;    -- New procedure body (for lazy mode)
+
+  -- Following actions are obsolete, view and trigger names are fully customizable in the "Create view from table" ibeblock
+  ViewFromTableName = 18;
+  VFTBeforeInsertTriggerName = 19;
+  VFTBeforeUpdateTriggerName = 20;
+  VFTBeforeDeleteTriggerName = 21;
+  -------------------------------------------------------------------------------------------------------------------------
+
+  NewFunctionText = 22;         -- New stored function text (for standard mode)
+  NewFunctionNameLazy = 23;     -- Not used
+  NewFunctionBodyLazy = 24;     -- New stored function body (for lazy mode)
+
+  NewPackageHeader = 25;        -- New package header
+  NewPackageBody = 26;          -- New package body
+
+
+  ProcessedTemplateOut = ProcessedTemplateIn;
+  TruncatedOut = TruncatedIn;
+
+
+  -------------------------------------------------------------------------------
+  -- Remove or comment following Exit to let the block to do something useful
+  -------------------------------------------------------------------------------
+  Exit;
+
+  -------------------------------------------------------------------------------
+  -- Following code is just for example, modify it before use if necessary
+  -------------------------------------------------------------------------------
+
+  CRLF = ibec_CRLF();
+
+  DB = ibec_GetDefaultConnection();
+  ibec_UseConnection(DB);
+
+
+  sTableName = ibec_Coalesce(DataArr['TABLE_NAME'], '');
+  sFieldName = ibec_Coalesce(DataArr['FIELD_NAME'], '');
+  sTriggerName = ibec_Coalesce(DataArr['TRIGGER_NAME'], '');
+  sGeneratorName = ibec_Coalesce(DataArr['GENERATOR_NAME'], '');
+
+
+  -- Generator/sequence name for autoincrement field
+  if (ActionID = AutoIncGeneratorName) then
+  begin
+    ProcessedTemplateOut = 'GEN_' || :sTableName || '_ID';
+  end
+
+  -- Trigger name for autoincrement field
+  else if (ActionID = AutoIncTriggerName) then
+  begin
+    ProcessedTemplateOut = :sTableName || :sFieldName || '_BI';
+  end
+
+  -- Trigger text for autoincrement field
+  else if (ActionID = AutoIncTriggerText) then
+  begin
+    ProcessedTemplateOut = 'CREATE TRIGGER ' || :sTriggerName || ' FOR ' || :sTableName || CRLF ||
+                           'ACTIVE BEFORE INSERT POSITION 0' || CRLF ||
+                           'AS' || CRLF ||
+                           'BEGIN' || CRLF ||
+                           '  -- Bla-bla-bla' || CRLF ||
+                           '  IF (NEW.' || :sFieldName || ' IS NULL) THEN' || CRLF ||
+                           '     NEW.' || :sFieldName || ' = GEN_ID(' || :sGeneratorName || ', 1);' || CRLF ||
+                           'END';
+  end
+
+  -- Procedure name for autoincrement field
+  else if (ActionID = AutoIncProcedureName) then
+  begin
+    ProcessedTemplateOut = 'SP_GEN_' || DataArr['TABLE_NAME'] || '_ID';
+  end
+
+  -- Procedure text for autoincrement field
+  else if (ActionID = AutoIncProcedureText) then
+  begin
+    ProcessedTemplateOut = 'CREATE PROCEDURE SP_GEN_' || :sTableName || '_ID' || CRLF ||
+                           'RETURNS (ID INTEGER)' || CRLF ||
+                           'AS' || CRLF ||
+                           'BEGIN' || CRLF ||
+                           '  ID = GEN_ID(' || :sGeneratorName || ', 1);' || CRLF ||
+                           '  SUSPEND;' || CRLF ||
+                           'END';
+  end
+
+  -- New constraint names
+  else if (ActionID in (PrimaryKeyName, ForeignKeyName, CheckConstrName, UniqueConstrName)) then
+  begin
+    sSearch = ibec_Coalesce(DataArr['SEARCH_STRING'], '');
+
+    -- New primary key name
+    if (ActionID = PrimaryKeyName) then
+      ProcessedTemplateOut = 'PK_' || :sTableName;
+
+    -- New foreign key name
+    else if (ActionID = ForeignKeyName) then
+    begin
+      ProcessedTemplateOut = 'FK_' || :sTableName || '_' || :sFieldName;
+    end
+
+    -- New check/unique constraint name
+    else if (ActionID in (CheckConstrName, UniqueConstrName)) then
+    begin
+      iNum = 1;
+      while (iNum > 0) do
+      begin
+        sConstrName = 'UNQ__';
+        if (ActionID = CheckConstrName) then
+          sConstrName = 'CHK';
+        sConstrName = :sConstrName || :iNum || '_' ||:sTableName;
+        if (ibec_Pos(ibec_Concat('@', :sConstrName, '@'), :sSearch) = 0) then
+        begin
+          ProcessedTemplateOut = :sConstrName;
+          Break;
+        end
+        iNum = iNum + 1;
+      end
+    end
+  end
+
+  -- New index name
+  else if (ActionID = IndexName) then
+  begin
+    sSearch = ibec_Coalesce(DataArr['SEARCH_STRING'], '');
+    sIndexOrder = ibec_Coalesce(DataArr['INDEX_SORT_ORDER'], '');  -- ASC or DESC
+    iNum = 1;
+    while (iNum > 0) do
+    begin
+      sIdxName = :sTableName || '_IDX' || :iNum;
+      if (ibec_Pos(ibec_Concat('@', :sIdxName, '@'), sSearch) = 0) then
+      begin
+        ProcessedTemplateOut = sIdxName || '_' || sIndexOrder;
+        iNum = 0;
+      end
+      else
+        iNum = iNum + 1;
+    end
+  end
+
+  -- New view text
+  else if (ActionID = NewViewText) then
+  begin
+     ProcessedTemplateOut = 'create view new_view ( _fields_ )' || CRLF ||
+                            'as' || CRLF ||
+                            'select _fields_' || CRLF ||
+                            'from _table_name_' || CRLF ||
+                            'where _conditions_';
+  end
+
+  -- New trigger stuffs
+  else if (ActionID in (NewTriggerText, NewTriggerNameLazy, NewTriggerBodyLazy)) then
+  begin
+    iTriggerType = ibec_Coalesce(DataArr['TRIGGER_TYPE'], __trgtRelation);
+    sTriggerAction = ibec_Coalesce(DataArr['TRIGGER_ACTION'], '');
+    sShortTriggerAction = ibec_Coalesce(DataArr['SHORT_TRIGGER_ACTION'], '');
+    sTriggerPosition = ibec_Coalesce(DataArr['TRIGGER_POSITION'], '');
+    if (:sTableName = '') then
+      sTableName = '%TABLE_NAME%';
+
+    -- New trigger text (for standard mode)
+    if (ActionID = NewTriggerText) then
+      ProcessedTemplateOut = 'create trigger ' || :sTableName || '_' || :sShortTriggerAction || ' for ' || :sTableName || CRLF ||
+                             'active ' || :sTriggerAction || ' position 0' || CRLF ||
+                             'as' || CRLF ||
+                             'begin' || CRLF ||
+                             '  /* Trigger text */' || CRLF ||
+                             'end';
+
+     -- New trigger name (for lazy mode)
+    if (ActionID = NewTriggerNameLazy) then
+    begin
+      if (iTriggerType = __trgtRelation) then
+        ProcessedTemplateOut = :sTableName || '_' || :sShortTriggerAction || :sTriggerPosition;
+      else if (iTriggerType = __trgtDatabase) then
+        ProcessedTemplateOut = 'TRG_' || ibec_StringReplace(:sTriggerAction, ' ', '_', __rfReplaceAll) || '_' || :sTriggerPosition;
+    end
+
+
+    -- New trigger body (for lazy mode)
+    if (ActionID = NewTriggerBodyLazy) then
+      ProcessedTemplateOut = 'begin' || CRLF ||
+                             '  /* Trigger text */' || CRLF ||
+                             'end';
+  end
+
+  -- New procedure text (for standard mode)
+  else if (ActionID = NewProcedureText) then
+    ProcessedTemplateOut = 'create procedure new_procedure' || CRLF ||
+                           'returns ()' || CRLF ||
+                           'as' || CRLF ||
+                           'begin' || CRLF ||
+                           '  suspend;' || CRLF ||
+                           'end';
+
+  -- New procedure body (for lazy mode)
+  else if (ActionID = NewProcedureBody) then
+    ProcessedTemplateOut = 'begin' || CRLF ||
+                           '  suspend;' || CRLF ||
+                           'end';
+
+  -- New function text (for standard mode)
+  else if (ActionID = NewFunctionText) then
+    ProcessedTemplateOut = 'create function new_function ()' || CRLF ||
+                           'returns integer' || CRLF ||
+                           'as' || CRLF ||
+                           'begin' || CRLF ||
+                           '  /* Function text */' || CRLF ||
+                           '  return 1;' || CRLF ||
+                           'end';
+
+  -- New function body (for lazy mode)
+  else if (ActionID = NewFunctionBodyLazy) then
+    ProcessedTemplateOut = 'begin' || CRLF ||
+                           '  /* Function text */' || CRLF ||
+                           '  return 1;' || CRLF ||
+                           'end';
+
+  -- New package header
+  else if (ActionID = NewPackageHeader) then
+    ProcessedTemplateOut = 'create package new_package' || CRLF ||
+                           'as' || CRLF ||
+                           'begin' || CRLF ||
+                            CRLF ||
+                           'end';
+
+  -- New package body
+  else if (ActionID = NewPackageBody) then
+    ProcessedTemplateOut = 'create package body new_package' || CRLF ||
+                           'as' || CRLF ||
+                           'begin' || CRLF ||
+                            CRLF ||
+                           'end';
+end

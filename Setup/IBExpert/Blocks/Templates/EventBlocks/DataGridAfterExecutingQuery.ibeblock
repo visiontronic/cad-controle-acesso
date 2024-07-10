@@ -1,0 +1,16 @@
+execute ibeblock (
+  DatabaseID variant comment           'Internal ID (within IBExpert) of the database associated to the table/view editor',
+  ObjectEditor variant comment         'Object editor (pointer), parent form of the data grid',
+  ObjectName variant comment           'Object name for table/view/procedure editor',
+  QuerySource variant comment          'Source of the executed query')
+returns (
+  ApplyBestFit boolean = FALSE comment 'If TRUE, apply best fit for data grid columns just after executing of a query')
+as
+begin
+  Exit;
+
+  -- Apply best fit only for data grid in the SQL Editor
+  iType = ibec_ibe_GetObjectEditorProp(ObjectEditor, 'ObjectType');
+  if (iType = __dboSQLQuery) then
+    ApplyBestFit = TRUE;
+end;

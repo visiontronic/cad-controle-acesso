@@ -1,0 +1,30 @@
+execute ibeblock (
+  DatabaseID variant comment 'Internal ID (within IBExpert) of the database associated to the Code Editor
+                              (can be NULL or 0 if not assigned)',
+  CodeEditor variant comment 'Code Editor object (pointer), reserved for future use',
+  ObjectEditor variant comment 'Object Editor object(pointer), parent form of the Code Editor',
+  ------------------------------------------------------------------------------
+  ObjectNames variant comment 'Array of object names in the Code Completion list',
+  ObjectNamesAsDeclared variant comment 'Array of object names as they were declared in PSQL (local variables, parameters)',
+  ObjectTypes variant comment 'Array of object types in the Code Completion list',
+  ObjectComments variant comment 'Array of object comments in the Code Completion list')
+returns (
+  UpdateList boolean = FALSE comment 'Update the Code Completion list after processing')
+as
+begin
+  -------------------------------------------------------------------------------
+  -- Remove or comment following Exit to let the block to do something useful
+  -------------------------------------------------------------------------------
+  --Exit;
+
+
+  -- Example of usage: exclude all triggers from the list
+
+  foreach (ObjectTypes as ObjType key iIndex skip nulls) do
+  begin
+    if (ObjType = __cciTrigger)  then
+      ObjectNames[iIndex] = null;
+  end
+
+  UpdateList = TRUE;
+end

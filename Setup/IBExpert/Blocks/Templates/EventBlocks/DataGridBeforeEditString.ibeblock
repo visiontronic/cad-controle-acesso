@@ -1,0 +1,14 @@
+execute ibeblock (
+  DatabaseID variant comment           'Internal ID (within IBExpert) of the database associated to the data grid',
+  ObjectEditor variant comment         'Object editor (pointer), parent form of the data grid',
+  ObjectName variant comment           'Object name for db object editor (table/procedure/etc.)',
+  StringValue variant comment          'String value to be edited',
+  StringLength integer comment         'Length of string value, bytes'
+)
+returns (
+  UseBlobEditor boolean = FALSE comment 'If TRUE simplified version of the Blob editor will be used instead of standard string editor')
+as
+begin
+  if (StringLength > 100) then
+    UseBlobEditor = TRUE;
+end;

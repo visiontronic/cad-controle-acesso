@@ -1,0 +1,31 @@
+execute ibeblock (
+  DatabaseID variant comment 'Internal ID (within IBExpert) of the database associated to the Code Editor
+                              (can be NULL or 0 if not assigned)',
+  CodeEditor variant comment 'Code Editor object (pointer)',
+  ObjectEditor variant comment 'Object Editor object(pointer), parent form of the Code Editor',
+  SourceDirectory variant comment 'Initial directory for Load From dialog. User may change it within the block, affects only the Load From dialog',
+  SourceFileName variant comment 'Source file name. User may change it within the block',
+  LoadEncoding integer comment 'Encoding of source file. Possible values are __feAUTO, __feANSI, __feUTF8, __feUTF16.
+                                User may overwrite this within the block',
+  IsQuickLoad boolean comment 'Indicates if there is Quick Load action performed',
+  Flags variant comment 'Some additional flags which are represented as set of chars')
+RETURNS (
+  CancelLoad boolean = FALSE comment 'If TRUE, loading will be canceled',
+  CancelLoadDialog boolean = FALSE comment 'If TRUE, the Load From dialog will not appear')
+as
+begin
+  -- DON'T FORGET TO REMOVE FOLLOWING EXIT !
+  exit;
+
+  -- Following examples shows how to change source directory if user loads from file in the stored procedure editor
+  if (ObjectEditor <> null) then
+  begin
+    iObjType = ibec_ibe_GetObjectEditorProp(ObjectEditor, 'ObjectType');
+    if (iObjType = __dboProcedure) then
+    begin
+      SourceDirectory = 'D:\DBSources\' || ibec_Cast(DatabaseID, __typeString) || '\Procedures';
+      if (not ibec_DirectoryExists(SourceDirectory)) then
+        ibec_ShowMessage('Directory is missing: ' || SourceDirectory);
+    end
+  end
+end

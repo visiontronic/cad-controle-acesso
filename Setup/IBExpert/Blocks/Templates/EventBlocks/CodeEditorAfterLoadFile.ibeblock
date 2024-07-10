@@ -1,0 +1,21 @@
+execute ibeblock (
+  DatabaseID variant comment     'Internal ID (within IBExpert) of the database associated to the Code Editor
+                                  (can be NULL or 0 if not assigned)',
+  CodeEditor variant comment     'Code Editor object (pointer), reserved for future use',
+  ObjectEditor variant comment   'Object Editor object(pointer), parent form of the Code Editor',
+  SourceDir variant comment      'Source file directory',
+  SourceFileName variant comment 'Source file name (includes directory)',
+  LoadEncoding integer comment   'Encoding of source file. Possible values are __feANSI, __feUTF8, __feUTF8_BOM, __feUTF16, __feUTF16_BOM',
+  IsQuickLoad boolean comment    'Indicates if there is Quick Load action performed',
+  Flags variant comment          'Some additional flags which are represented as set of chars')
+as
+begin
+  Exit;
+
+  -- Below is a simple example of possible usage
+  iObjType = ibec_ibe_GetObjectEditorProp(ObjectEditor, 'ObjectType');
+  if (iObjType = __dboSQLScript) then -- Script executive
+  begin
+    ibec_SetCurrentDir(SourceDir);
+  end;
+end

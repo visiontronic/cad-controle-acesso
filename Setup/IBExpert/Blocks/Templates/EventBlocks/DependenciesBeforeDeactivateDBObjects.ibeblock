@@ -1,0 +1,26 @@
+execute ibeblock (
+  DatabaseID variant comment           'Internal ID (within IBExpert) of the database associated to the dependencies tree',
+  ObjectEditor variant comment         'Object editor (pointer), parent form of the dependencies tree',
+  ObjectName variant comment           'Name of a database object associated with ObjectEditor (procedure/function/etc.)',
+  DependedObjects boolean comment      'Indicates that the block was fired from a tree/list of depended objects'
+)
+returns (
+  RequestConfirmation boolean = TRUE comment 'If TRUE confirmation dialog will be displayed before deactivating dependended objects',
+  ListCaption variant comment                'Caption for the Project View folder node with list of deactivated objects',
+  PostAction integer = 1 comment             'Action to perform after dectivation: 0 - do nothing; 1 - store links in the Project view; 2 - copy list of objects to clipbord',
+  DeleteAfter integer = 30 comment           'Autodelete interval for the Project View folder, days'
+)
+as
+begin
+  if (DependedObjects) then      -- Depended objects will disappear from a dependencies tree after deactivation...
+  begin
+    RequestConfirmation = TRUE;  -- Always request confirmation
+    DeleteAfter = 30;            -- Automatically delete list of deactivated objects after 30 days; default value
+    PostAction = 1;              -- Store links to deactivated objects in the Project View tree; default value
+  end
+  else
+  begin
+    RequestConfirmation = FALSE;  -- Deactivate without confirmation request
+    PostAction = 0;               -- Just deactivate, don't store/copy list of deactivated objects
+  end;
+end;

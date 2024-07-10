@@ -1,0 +1,61 @@
+execute ibeblock (
+  DatabaseID variant comment 'Internal ID (within IBExpert) of the database associated to the Code Editor
+                              (can be NULL or 0 if not assigned)',
+  CodeEditor variant comment 'Code Editor object (pointer)',
+  ObjectEditor variant comment 'Object Editor object (pointer), parent form of the Code Editor',
+  ------------------------------------------------------------------------------
+  ActionID variant = null)
+returns (
+  InitData variant = null)
+as
+begin
+  -- User actions submenu structure
+  -- If Caption property is missing or empty/null an item will not be shown in the user actions menu. But shortcut will work if defined.
+  if (ActionID is null) then
+  begin
+    InitData =  '{"user_actions": [
+                                        {"action_id": "quote_text", "caption": "Quote selected text", "shortcut": "Ctrl+Shift+Q"},
+                                        {"action_id": "dequote_text", "caption": "Extract quoted text"},
+                                        {"action_id": "del_comments", "caption": "Delete comments", "shortcut": "Ctrl+Shift+/"}
+                                  ]
+                 }';
+    exit;
+  end;
+
+  -- Quote selected text. For example, to put it as a query text into Pascal code
+  if (ActionID = 'quote_text') then
+  begin
+    s = @CodeEditor.GetSelectedText(CodeEditor);
+    if (s = '') then
+      Exit;
+    s = ibec_QuotedStr(s,  '''');
+    @CodeEditor.SetSelectedText(CodeEditor, s);
+  end;
+
+  -- Extract quoted text.
+  else if (ActionID = 'dequote_text') then
+  begin
+    s = @CodeEditor.GetSelectedText(CodeEditor);
+    if (s = '') then
+      Exit;
+    cQuote = ibec_Copy(s, 1, 1);
+    if ((cQuote <> '"') and (cQuote <> '''')) then
+      Exit;
+    s = ibec_ExtractQuotedStr(s, cQuote);
+    @CodeEditor.SetSelectedText(CodeEditor, s);
+  end;
+
+  -- Delete comments from text
+  else if (ActionID = 'del_comments') then
+  begin
+    s = @CodeEditor.GetSelectedText(CodeEditor);
+    if (s = '') then
+      s = @CodeEditor.GetText(CodeEditor);
+    s = ibec_preg_Replace('/\*/*([^/]*\*+)+/', '', s);   -- Multi-line comments
+    s = ibec_preg_Replace('\-\-([^\x0D])*\x0D', ibec_Chr(13), s); -- Single-line comments
+    if (@CodeEditor.GetProperty(CodeEditor, 'HasSelection')) then
+      @CodeEditor.SetSelectedText(CodeEditor, s);
+    else
+      @CodeEditor.SetText(CodeEditor, s);
+  end;
+end
